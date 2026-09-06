@@ -23,7 +23,7 @@ final class AuditRepository
     ): int {
         global $wpdb;
 
-        $wpdb->insert(
+        $result = $wpdb->insert(
             $this->table(),
             [
                 'product_id' => $productId,
@@ -38,7 +38,7 @@ final class AuditRepository
             ['%d', '%s', '%s', '%s', '%s', '%d', '%s', '%s']
         );
 
-        return (int) $wpdb->insert_id;
+        return $result === false ? 0 : (int) $wpdb->insert_id;
     }
 
     public function find(int $id): ?array

@@ -9,6 +9,7 @@ final class BatchJobService
     private const OPTION = 'catalogmend_batch_job';
     private const LOCK = 'catalogmend_batch_lock';
     private const HOOK = 'catalogmend_process_batch';
+    private const LOCK_TTL = 600;
 
     public function __construct(private readonly ProductCleaner $cleaner)
     {
@@ -59,7 +60,7 @@ final class BatchJobService
 
     public function process(): void
     {
-        if (! add_option(self::LOCK, time(), '', false)) {
+        if (! $this->acquireLock()) {
             return;
         }
 
@@ -116,6 +117,7 @@ final class BatchJobService
         $job['ids'] = [];
         update_option(self::OPTION, $job, false);
         wp_clear_scheduled_hook(self::HOOK);
+        delete_option(self::LOCK);
         return true;
     }
 
@@ -130,5 +132,20 @@ final class BatchJobService
         if (! wp_next_scheduled(self::HOOK)) {
             wp_schedule_single_event(time() + 1, self::HOOK);
         }
+    }
+
+    private function acquireLock(): bool
+    {
+        if (add_option(self::LOCK, time(), '', false)) {
+            return true;
+        }
+
+        $lockedAt = (int) get_option(self::LOCK, 0);
+        if ($lockedAt > 0 && (time() - $lockedAt) > self::LOCK_TTL) {
+            delete_option(self::LOCK);
+            return add_option(self::LOCK, time(), '', false);
+        }
+
+        return false;
     }
 }

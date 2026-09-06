@@ -57,6 +57,11 @@ final class ProductCleaner
         }
 
         $auditId = $this->audit->record($productId, 'clean', $changed, $before, $after, $batchId, $userId);
+        if ($auditId === 0) {
+            $restore = array_merge(['ID' => $productId], $before);
+            wp_update_post(wp_slash($restore), true);
+            return ['updated' => false, 'changed_fields' => [], 'audit_id' => 0, 'error' => 'audit_write_failed'];
+        }
 
         return ['updated' => true, 'changed_fields' => $changed, 'audit_id' => $auditId, 'error' => null];
     }
@@ -75,17 +80,23 @@ final class ProductCleaner
         }
 
         $beforeValues = is_array($event['before_values']) ? $event['before_values'] : [];
+        $afterValues = is_array($event['after_values']) ? $event['after_values'] : [];
         $changedFields = is_array($event['changed_fields']) ? $event['changed_fields'] : [];
         $update = ['ID' => $productId];
         $current = [];
         $restored = [];
 
         foreach ($changedFields as $field) {
-            if (! in_array($field, self::FIELDS, true) || ! array_key_exists($field, $beforeValues)) {
+            if (! in_array($field, self::FIELDS, true) || ! array_key_exists($field, $beforeValues) || ! array_key_exists($field, $afterValues)) {
                 continue;
             }
 
-            $current[$field] = (string) $post->{$field};
+            $currentValue = (string) $post->{$field};
+            if ($currentValue !== (string) $afterValues[$field]) {
+                return ['updated' => false, 'error' => 'rollback_conflict'];
+            }
+
+            $current[$field] = $currentValue;
             $restored[$field] = (string) $beforeValues[$field];
             $update[$field] = (string) $beforeValues[$field];
         }
@@ -99,7 +110,20 @@ final class ProductCleaner
             return ['updated' => false, 'error' => $result->get_error_message()];
         }
 
-        $this->audit->record($productId, 'rollback', array_keys($restored), $current, $restored, (string) ($event['batch_id'] ?? ''));
+        $rollbackAuditId = $this->audit->record(
+            $productId,
+            'rollback',
+            array_keys($restored),
+            $current,
+            $restored,
+            (string) ($event['batch_id'] ?? '')
+        );
+
+        if ($rollbackAuditId === 0) {
+            $reapply = array_merge(['ID' => $productId], $current);
+            wp_update_post(wp_slash($reapply), true);
+            return ['updated' => false, 'error' => 'audit_write_failed'];
+        }
 
         return ['updated' => true, 'error' => null];
     }
