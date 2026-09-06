@@ -25,6 +25,23 @@ define('CATALOGMEND_AI_FILE', __FILE__);
 define('CATALOGMEND_AI_PATH', plugin_dir_path(__FILE__));
 define('CATALOGMEND_AI_URL', plugin_dir_url(__FILE__));
 
+add_filter('plugin_action_links_' . plugin_basename(__FILE__), static function (array $links): array {
+    $settingsUrl = add_query_arg(
+        [
+            'page' => 'catalogmend-ai',
+            'tab'  => 'settings',
+        ],
+        admin_url('admin.php')
+    );
+
+    array_unshift(
+        $links,
+        '<a href="' . esc_url($settingsUrl) . '">' . esc_html__('Settings', 'catalogmend-ai') . '</a>'
+    );
+
+    return $links;
+});
+
 spl_autoload_register(static function (string $class): void {
     $prefix = 'CatalogMend\\';
     if (! str_starts_with($class, $prefix)) {
