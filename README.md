@@ -1,129 +1,102 @@
-# CatalogMend AI
+# CatalogMend AI Free
 
-CatalogMend AI is a WordPress/WooCommerce catalog repair plugin focused on recovering product content damaged by encoding errors, corrupted characters, mojibake, and other unreadable text fragments.
+CatalogMend AI Free is a WordPress/WooCommerce plugin for detecting and safely removing deterministic text corruption from product content.
 
-This repository contains the **Free / Community edition**.
+Version: **1.0.0**
 
-## Core principle
+## What it does
 
-CatalogMend must repair damaged catalog content without changing valid product data.
+CatalogMend scans WooCommerce product titles, short descriptions and full descriptions for encoding damage and unreadable fragments. The Free edition does not use AI and does not send catalog data to external services.
 
-The Free edition is deterministic and does **not** use AI. It scans supported text fields, reports suspicious fragments, and automatically removes only corruption classified as safe to delete.
+Automatic cleanup is deliberately conservative. High-confidence corruption such as the Unicode replacement character (`�`) and forbidden control characters can be removed automatically. Ambiguous mojibake is reported for review instead of being guessed away.
 
-## Current implementation — 0.1.0 development
+## Features
 
-Implemented in `main`:
+- Paginated catalog scan.
+- Structured corruption findings with severity.
+- Before/After preview without database writes.
+- Safe single-product cleanup.
+- Selected-product background cleanup using resumable WP-Cron jobs.
+- Batch progress, failure count and cancellation.
+- Dedicated audit/history table.
+- Original/applied value storage for supported text fields.
+- Rollback of individual cleanup events.
+- CSV audit export.
+- Configurable batch size.
+- Optional data deletion on uninstall.
+- WooCommerce HPOS compatibility declaration.
+- PHP 8.1/8.2/8.3 CI matrix.
 
-- WordPress plugin bootstrap with PSR-4-style internal autoloading.
-- WooCommerce admin page under **WooCommerce → CatalogMend AI**.
-- Paginated product scan (50 products per page).
-- Initial deterministic corruption rules.
-- High-confidence detection for Unicode replacement characters and forbidden control bytes.
-- Conservative reporting of ambiguous mojibake patterns without automatic deletion.
-- HTML/comment/shortcode protection while visible text is inspected.
-- Cleaning limited to product title, short description and full description.
-- Nonce and `manage_woocommerce` checks for mutations.
-- Snapshot of changed text fields before cleanup.
-- One-step rollback of the last CatalogMend cleanup for a product.
-- PHPUnit tests for core detection and markup preservation.
-- GitHub Actions PHP lint/test workflow for PHP 8.1, 8.2 and 8.3.
+## Safety boundary
 
-Still to implement before the first usable beta:
+Free can mutate only:
 
-- Full dry-run diff UI before every write.
-- Resumable/background batch scan and cleanup.
-- Audit/job persistence.
-- Expanded multilingual mojibake fixture corpus and detection rules.
-- WooCommerce dependency/compatibility checks.
-- Bulk selection and filters.
-- Packaging/release workflow.
+- `post_title`
+- `post_excerpt`
+- `post_content`
 
-## Free edition scope
+It does **not** change SKU, product ID, slug, prices, sale prices, stock, tax configuration, product type, attributes, variations, dimensions, weight, categories, tags, linked products, downloadable settings, custom fields, third-party metadata, images or media.
 
-- Scan WooCommerce product content for corrupted/unreadable fragments.
-- Detect common mojibake and malformed encoding patterns.
-- Preview detected problems before applying changes.
-- Remove detected corrupted fragments without rewriting valid text.
-- Process products individually or in batches.
-- Keep technical product data unchanged.
-- Produce an audit/report of affected products and applied changes.
-- Support dry-run mode before database writes.
+HTML tags, HTML comments and WordPress shortcodes are treated as protected segments by the repair processor.
 
-## Data that must remain unchanged
+## Installation
 
-Unless a future feature explicitly says otherwise, CatalogMend must not alter:
+1. Install and activate WooCommerce.
+2. Download or clone this repository into `wp-content/plugins/catalogmend-ai`.
+3. Activate **CatalogMend AI** in WordPress.
+4. Open **WooCommerce → CatalogMend AI**.
+5. Scan, preview and then apply cleanup where appropriate.
 
-- SKU
-- product ID
-- slug/permalink
-- prices and sale prices
-- stock values and stock status
-- tax settings
-- product type
-- attributes and variations
-- dimensions and weight
-- categories and tags
-- linked/up-sell/cross-sell relationships
-- downloadable/virtual product settings
-- custom fields and third-party metadata, except CatalogMend's own rollback/audit metadata
-- images and media
+For background jobs, WordPress cron must be operational. If `DISABLE_WP_CRON` is enabled, configure a real server cron to invoke `wp-cron.php`.
 
-The Free edition repairs text only.
+## Admin workflow
 
-## Target text fields
+### Scan & Repair
 
-Initial target fields:
+CatalogMend scans products in pages of 50 and shows only products with findings. Use **Preview** to inspect the exact Before/After result.
 
-- product title
-- short description
-- full description
+Use **Clean safe findings** for one product, or select products and start a background batch.
 
-Additional fields must be opt-in and explicitly supported.
+### History
 
-## Safety model
+Every successful cleanup creates an audit event. A `clean` event can be rolled back. Rollback also creates a new audit event, so history remains append-only.
 
-Catalog repair is destructive if implemented carelessly. The plugin follows these rules:
+### Settings
 
-1. Scan before write.
-2. Show what will change.
-3. Never silently rewrite valid content.
-4. Save changed source values for rollback.
-5. Batch operations must be resumable and must not depend on one long PHP request.
-6. Technical WooCommerce data is outside the repair scope.
-7. Ambiguous corruption is report-only until a rule is proven safe enough for automatic removal.
+- Batch size: 1–100 products per WP-Cron step, default 20.
+- Delete data on uninstall: disabled by default.
 
-## Editions
+## Detection philosophy
 
-| Capability | Free | Pro |
-|---|---:|---:|
-| Corruption/mojibake detection | Yes | Yes |
-| Remove damaged fragments | Yes | Yes |
-| Dry run / preview | Yes | Yes |
-| Batch processing | Yes | Yes |
-| AI-assisted reconstruction | No | Yes |
-| AI rewrite / text improvement | No | Yes |
-| Product-image logo cleanup | No | Yes |
-| Logo replacement workflow | No | Yes |
+Unusual Unicode is not automatically corruption. Hebrew, Arabic, Cyrillic, accented Latin text, symbols, emoji, measurements and mixed RTL/LTR content must not be removed just because they are non-ASCII.
 
-The commercial edition is developed separately in the private `CatalogMend-AI-pro` repository.
+See `docs/DETECTION_RULES.md` for the rule model.
+
+## Development
+
+```bash
+composer install
+composer lint
+composer test
+```
+
+CI runs lint and PHPUnit on PHP 8.1, 8.2 and 8.3.
 
 ## Documentation
 
+- `docs/USER_GUIDE.md`
 - `docs/PRODUCT_SCOPE.md`
 - `docs/ARCHITECTURE.md`
 - `docs/DETECTION_RULES.md`
 - `docs/ROADMAP.md`
 
-## Compatibility target
+## Release status
 
-Initial implementation target:
+Free v1.0.0 implementation is complete. CI is required to remain green before release packaging.
 
-- WordPress 6.4+
-- WooCommerce current supported releases
-- PHP 8.1+
-- MySQL/MariaDB versions supported by current WordPress/WooCommerce
+## Pro edition
 
-Exact WooCommerce minimum version will be frozen before the first public release.
+AI reconstruction/rewrite and product-image logo cleanup are intentionally excluded from this repository and belong to the separate Pro edition.
 
 ## License
 

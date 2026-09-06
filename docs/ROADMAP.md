@@ -1,73 +1,70 @@
 # Roadmap — CatalogMend AI Free
 
-## Phase 0 — Specification
+## v1.0.0 — Complete
 
-- Define immutable technical data boundary.
-- Define supported text fields.
-- Build corruption taxonomy.
-- Build multilingual clean/damaged fixture corpus.
-- Freeze minimum WordPress/WooCommerce/PHP compatibility for first release.
+### Specification
+- [x] Immutable WooCommerce technical-data boundary.
+- [x] Supported text-field allow-list.
+- [x] Corruption taxonomy and conservative severity model.
+- [x] PHP/WordPress/WooCommerce compatibility targets.
 
-## Phase 1 — Plugin foundation
+### Plugin foundation
+- [x] WordPress bootstrap and autoloading.
+- [x] WooCommerce dependency check.
+- [x] Admin capability and nonce enforcement.
+- [x] Activation/deactivation hooks.
+- [x] Settings foundation.
+- [x] PHPUnit and CI matrix.
 
-- WordPress plugin bootstrap.
-- Namespaces/autoloading.
-- Admin capability model.
-- Activation/deactivation hooks.
-- Settings foundation.
-- Test framework and CI.
+### Scanner
+- [x] Product source scan.
+- [x] UTF-8-aware deterministic detectors.
+- [x] Protected HTML/comments/shortcode segments.
+- [x] Structured findings.
+- [x] Paginated catalog scan.
 
-## Phase 2 — Scanner
+### Safe repair
+- [x] Before/After preview.
+- [x] Dry-run behavior through scan/preview.
+- [x] Explicit mutation allow-list.
+- [x] UTF-8 validation before write.
+- [x] Single-product cleanup.
+- [x] Ambiguous findings remain review-only.
 
-- WooCommerce product source adapter.
-- UTF-8-aware text extraction.
-- HTML/text-node handling.
-- Deterministic corruption detectors.
-- Structured findings.
-- Product-level and catalog-level scan.
+### Batch processing
+- [x] Persisted resumable job state.
+- [x] WP-Cron worker.
+- [x] Configurable chunk size.
+- [x] Progress UI.
+- [x] Per-item failure accounting.
+- [x] Cancellation.
+- [x] Worker lock to avoid concurrent mutation.
 
-## Phase 3 — Safe repair
+### Audit and rollback
+- [x] Dedicated audit table.
+- [x] Before/After values for changed supported fields.
+- [x] User, batch and timestamp metadata.
+- [x] History UI.
+- [x] Rollback for cleanup events.
+- [x] CSV audit metadata export.
 
-- Repair proposal engine.
-- Before/after diff.
-- Dry-run mode.
-- Allow-listed field mutation.
-- Validation before write.
-- Manual single-product apply.
+### Release hardening
+- [x] WooCommerce HPOS compatibility declaration.
+- [x] Optional uninstall cleanup policy.
+- [x] WordPress-style `readme.txt`.
+- [x] User guide.
+- [x] PHP 8.1/8.2/8.3 lint and unit-test CI.
 
-## Phase 4 — Batch processing
+## Deferred post-v1 candidates
 
-- Resumable job model.
-- Action Scheduler integration or equivalent.
-- Progress UI.
-- Retry/failure handling.
-- Cancellation.
-- Concurrency protection.
-
-## Phase 5 — Audit and rollback
-
-- Repair history.
-- Original/proposed/applied value tracking according to storage policy.
-- Product and batch filters.
-- Rollback strategy for supported changes.
-
-## Phase 6 — Public release hardening
-
-- Large-catalog performance tests.
-- Multilingual false-positive tests.
-- WooCommerce compatibility testing.
-- Security review.
-- Uninstall/data-retention behavior.
-- WordPress.org packaging requirements if distributed there.
-- User documentation.
-
-## Post-v1 candidates
+These are enhancements, not blockers for Free v1.0.0:
 
 - Additional product text adapters.
 - Importer-specific repair profiles.
-- WP-CLI scan/repair commands.
+- WP-CLI commands.
 - Scheduled health scans.
-- Exportable catalog health reports.
-- Ruleset extension API.
+- Richer health-report exports.
+- Public ruleset extension API.
+- Larger real-world multilingual fixture corpus and performance benchmarking.
 
-AI rewriting, text generation and image manipulation remain Pro-only capabilities.
+AI rewriting, generated replacement prose and image manipulation remain Pro-only capabilities.
