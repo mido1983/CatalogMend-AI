@@ -11,7 +11,7 @@
  * Text Domain: catalogmend-ai
  */
 
-declared(strict_types=1);
+declare(strict_types=1);
 
 if (! defined('ABSPATH')) {
     exit;
