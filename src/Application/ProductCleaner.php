@@ -4,85 +4,94 @@ declare(strict_types=1);
 
 namespace CatalogMend\Application;
 
+use CatalogMend\Infrastructure\Persistence\AuditRepository;
 use CatalogMend\Support\HtmlTextProcessor;
 
 final class ProductCleaner
 {
     private const FIELDS = ['post_title', 'post_excerpt', 'post_content'];
-    private const BACKUP_META = '_catalogmend_ai_last_backup';
 
-    public function __construct(private readonly HtmlTextProcessor $processor)
-    {
+    public function __construct(
+        private readonly HtmlTextProcessor $processor,
+        private readonly AuditRepository $audit
+    ) {
     }
 
-    public function clean(int $productId): array
+    public function clean(int $productId, string $batchId = ''): array
     {
         $post = get_post($productId);
         if (! $post instanceof \WP_Post || $post->post_type !== 'product') {
-            return ['updated' => false, 'changed_fields' => [], 'error' => 'invalid_product'];
+            return ['updated' => false, 'changed_fields' => [], 'audit_id' => 0, 'error' => 'invalid_product'];
         }
 
         $update = ['ID' => $productId];
+        $before = [];
+        $after = [];
         $changed = [];
-        $backupFields = [];
 
         foreach (self::FIELDS as $field) {
-            $before = (string) $post->{$field};
-            $after = $this->processor->clean($before);
+            $source = (string) $post->{$field};
+            $cleaned = $this->processor->clean($source);
 
-            if ($before !== $after) {
-                $update[$field] = $after;
-                $backupFields[$field] = $before;
-                $changed[] = $field;
+            if ($source === $cleaned) {
+                continue;
             }
+
+            if (! $this->isValidUtf8($cleaned)) {
+                return ['updated' => false, 'changed_fields' => [], 'audit_id' => 0, 'error' => 'invalid_utf8_after_clean'];
+            }
+
+            $update[$field] = $cleaned;
+            $before[$field] = $source;
+            $after[$field] = $cleaned;
+            $changed[] = $field;
         }
 
         if ($changed === []) {
-            return ['updated' => false, 'changed_fields' => [], 'error' => null];
+            return ['updated' => false, 'changed_fields' => [], 'audit_id' => 0, 'error' => null];
         }
-
-        update_post_meta($productId, self::BACKUP_META, [
-            'version' => 1,
-            'created_at' => current_time('mysql', true),
-            'fields' => $backupFields,
-        ]);
 
         $result = wp_update_post(wp_slash($update), true);
         if (is_wp_error($result)) {
-            return ['updated' => false, 'changed_fields' => [], 'error' => $result->get_error_message()];
+            return ['updated' => false, 'changed_fields' => [], 'audit_id' => 0, 'error' => $result->get_error_message()];
         }
 
-        return ['updated' => true, 'changed_fields' => $changed, 'error' => null];
+        $auditId = $this->audit->record($productId, 'clean', $changed, $before, $after, $batchId);
+
+        return ['updated' => true, 'changed_fields' => $changed, 'audit_id' => $auditId, 'error' => null];
     }
 
-    public function canRollback(int $productId): bool
+    public function rollback(int $auditId): array
     {
-        $backup = get_post_meta($productId, self::BACKUP_META, true);
-        return is_array($backup) && ! empty($backup['fields']) && is_array($backup['fields']);
-    }
+        $event = $this->audit->find($auditId);
+        if ($event === null || ($event['operation'] ?? '') !== 'clean') {
+            return ['updated' => false, 'error' => 'invalid_audit_event'];
+        }
 
-    public function rollback(int $productId): array
-    {
+        $productId = (int) $event['product_id'];
         $post = get_post($productId);
-        $backup = get_post_meta($productId, self::BACKUP_META, true);
-
         if (! $post instanceof \WP_Post || $post->post_type !== 'product') {
             return ['updated' => false, 'error' => 'invalid_product'];
         }
 
-        if (! is_array($backup) || empty($backup['fields']) || ! is_array($backup['fields'])) {
-            return ['updated' => false, 'error' => 'backup_not_found'];
-        }
-
+        $beforeValues = is_array($event['before_values']) ? $event['before_values'] : [];
+        $changedFields = is_array($event['changed_fields']) ? $event['changed_fields'] : [];
         $update = ['ID' => $productId];
-        foreach (self::FIELDS as $field) {
-            if (array_key_exists($field, $backup['fields']) && is_string($backup['fields'][$field])) {
-                $update[$field] = $backup['fields'][$field];
+        $current = [];
+        $restored = [];
+
+        foreach ($changedFields as $field) {
+            if (! in_array($field, self::FIELDS, true) || ! array_key_exists($field, $beforeValues)) {
+                continue;
             }
+
+            $current[$field] = (string) $post->{$field};
+            $restored[$field] = (string) $beforeValues[$field];
+            $update[$field] = (string) $beforeValues[$field];
         }
 
         if (count($update) === 1) {
-            return ['updated' => false, 'error' => 'backup_empty'];
+            return ['updated' => false, 'error' => 'nothing_to_restore'];
         }
 
         $result = wp_update_post(wp_slash($update), true);
@@ -90,7 +99,13 @@ final class ProductCleaner
             return ['updated' => false, 'error' => $result->get_error_message()];
         }
 
-        delete_post_meta($productId, self::BACKUP_META);
+        $this->audit->record($productId, 'rollback', array_keys($restored), $current, $restored, (string) ($event['batch_id'] ?? ''));
+
         return ['updated' => true, 'error' => null];
+    }
+
+    private function isValidUtf8(string $value): bool
+    {
+        return preg_match('//u', $value) === 1;
     }
 }
