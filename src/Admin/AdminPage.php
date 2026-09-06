@@ -24,6 +24,7 @@ final class AdminPage
     public function register(): void
     {
         add_action('admin_menu', [$this, 'addMenu']);
+        add_action('admin_head', [$this, 'renderMenuStyles']);
         add_action('admin_post_catalogmend_clean_product', [$this, 'handleClean']);
         add_action('admin_post_catalogmend_start_batch', [$this, 'handleStartBatch']);
         add_action('admin_post_catalogmend_cancel_batch', [$this, 'handleCancelBatch']);
@@ -34,14 +35,23 @@ final class AdminPage
 
     public function addMenu(): void
     {
-        add_submenu_page(
-            'woocommerce',
+        add_menu_page(
             __('CatalogMend AI', 'catalogmend-ai'),
             __('CatalogMend AI', 'catalogmend-ai'),
             'manage_woocommerce',
             self::SLUG,
-            [$this, 'render']
+            [$this, 'render'],
+            'dashicons-admin-tools',
+            56
         );
+    }
+
+    public function renderMenuStyles(): void
+    {
+        echo '<style id="catalogmend-admin-menu-styles">'
+            . '#toplevel_page_catalogmend-ai{border-top:1px solid rgba(240,246,252,.25);'
+            . 'border-bottom:1px solid rgba(240,246,252,.25);margin:6px 0;padding:4px 0}'
+            . '</style>';
     }
 
     public function render(): void
