@@ -18,7 +18,8 @@ final class AuditRepository
         array $changedFields,
         array $before,
         array $after,
-        string $batchId = ''
+        string $batchId = '',
+        ?int $userId = null
     ): int {
         global $wpdb;
 
@@ -30,7 +31,7 @@ final class AuditRepository
                 'changed_fields' => wp_json_encode(array_values($changedFields), JSON_UNESCAPED_UNICODE),
                 'before_values' => wp_json_encode($before, JSON_UNESCAPED_UNICODE),
                 'after_values' => wp_json_encode($after, JSON_UNESCAPED_UNICODE),
-                'user_id' => get_current_user_id(),
+                'user_id' => $userId ?? get_current_user_id(),
                 'batch_id' => $batchId,
                 'created_at' => current_time('mysql', true),
             ],

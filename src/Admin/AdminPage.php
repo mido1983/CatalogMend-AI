@@ -48,8 +48,7 @@ final class AdminPage
     {
         $this->assertCapability();
         $tab = isset($_GET['tab']) ? sanitize_key((string) $_GET['tab']) : 'scan';
-        $allowed = ['scan', 'history', 'settings'];
-        if (! in_array($tab, $allowed, true)) {
+        if (! in_array($tab, ['scan', 'history', 'settings'], true)) {
             $tab = 'scan';
         }
 
@@ -95,6 +94,14 @@ final class AdminPage
     {
         $this->assertCapability();
         check_admin_referer('catalogmend_start_batch');
+
+        $singleId = isset($_POST['single_product_id']) ? absint($_POST['single_product_id']) : 0;
+        if ($singleId > 0) {
+            $result = $this->cleaner->clean($singleId);
+            $status = $result['error'] !== null ? 'error' : ($result['updated'] ? 'cleaned' : 'unchanged');
+            $this->redirect(['catalogmend_status' => $status]);
+        }
+
         $ids = isset($_POST['product_ids']) && is_array($_POST['product_ids'])
             ? array_map('absint', wp_unslash($_POST['product_ids']))
             : [];
@@ -192,7 +199,7 @@ final class AdminPage
                             <td>
                                 <a class="button" href="<?php echo esc_url(add_query_arg(['page' => self::SLUG, 'preview' => (int) $item['id']], admin_url('admin.php'))); ?>"><?php echo esc_html__('Preview', 'catalogmend-ai'); ?></a>
                                 <?php if ($this->hasAutoRemovable($item['fields'])) : ?>
-                                    <?php $this->singleCleanForm((int) $item['id']); ?>
+                                    <button class="button" type="submit" name="single_product_id" value="<?php echo esc_attr((string) $item['id']); ?>"><?php echo esc_html__('Clean safe findings', 'catalogmend-ai'); ?></button>
                                 <?php else : ?>
                                     <span><?php echo esc_html__('Review only', 'catalogmend-ai'); ?></span>
                                 <?php endif; ?>
@@ -309,14 +316,6 @@ final class AdminPage
             }
             echo '</ul>';
         }
-    }
-
-    private function singleCleanForm(int $productId): void
-    {
-        echo '<form style="display:inline" method="post" action="' . esc_url(admin_url('admin-post.php')) . '"><input type="hidden" name="action" value="catalogmend_clean_product"><input type="hidden" name="product_id" value="' . esc_attr((string) $productId) . '">';
-        wp_nonce_field('catalogmend_clean_product_' . $productId);
-        submit_button(__('Clean safe findings', 'catalogmend-ai'), 'secondary', 'submit', false);
-        echo '</form>';
     }
 
     private function hasAutoRemovable(array $fields): bool

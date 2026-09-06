@@ -17,7 +17,7 @@ final class ProductCleaner
     ) {
     }
 
-    public function clean(int $productId, string $batchId = ''): array
+    public function clean(int $productId, string $batchId = '', ?int $userId = null): array
     {
         $post = get_post($productId);
         if (! $post instanceof \WP_Post || $post->post_type !== 'product') {
@@ -56,7 +56,7 @@ final class ProductCleaner
             return ['updated' => false, 'changed_fields' => [], 'audit_id' => 0, 'error' => $result->get_error_message()];
         }
 
-        $auditId = $this->audit->record($productId, 'clean', $changed, $before, $after, $batchId);
+        $auditId = $this->audit->record($productId, 'clean', $changed, $before, $after, $batchId, $userId);
 
         return ['updated' => true, 'changed_fields' => $changed, 'audit_id' => $auditId, 'error' => null];
     }

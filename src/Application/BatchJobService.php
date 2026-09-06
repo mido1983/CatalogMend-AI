@@ -45,6 +45,7 @@ final class BatchJobService
             'processed' => 0,
             'changed' => 0,
             'failed' => 0,
+            'user_id' => get_current_user_id(),
             'started_at' => current_time('mysql', true),
             'finished_at' => '',
             'last_error' => '',
@@ -73,9 +74,10 @@ final class BatchJobService
             $ids = is_array($job['ids'] ?? null) ? $job['ids'] : [];
             $cursor = max(0, (int) ($job['cursor'] ?? 0));
             $end = min(count($ids), $cursor + $batchSize);
+            $userId = max(0, (int) ($job['user_id'] ?? 0));
 
             for ($i = $cursor; $i < $end; $i++) {
-                $result = $this->cleaner->clean((int) $ids[$i], (string) $job['id']);
+                $result = $this->cleaner->clean((int) $ids[$i], (string) $job['id'], $userId);
                 $job['processed'] = (int) $job['processed'] + 1;
                 $job['cursor'] = $i + 1;
 
